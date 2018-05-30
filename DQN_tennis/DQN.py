@@ -35,7 +35,7 @@ class DQNAgent:
         self.t = 0
         self.max_Q = 0
         self.train = True
-        self.render = True
+        self.render = False
         # get size of state and action
         self.state_size = state_size
         self.action_size = action_size

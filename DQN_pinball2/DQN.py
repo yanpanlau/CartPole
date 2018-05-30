@@ -9,10 +9,11 @@ from keras.models import Sequential
 import pdb
 from keras.models import model_from_json
 from keras.models import Sequential
-from keras.layers import Input, Embedding, LSTM, Dense, merge
+from keras.layers import Input, Embedding, LSTM, Dense, merge, Lambda
 from keras.models import Model
 from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
+from keras.layers.merge import Add
 from keras.optimizers import SGD , Adam
 import skimage as skimage
 from skimage import transform, color, exposure
@@ -73,16 +74,22 @@ class DQNAgent:
         if (self.args['dueling'] == "True" and self.args['noisy'] == "False"):    #If we use dueling
             print("Now we use vanilla dueling network")    
             fc1 = Dense(512)(flatten)
-            advantage = Dense(self.action_size)(fc1)
+            advantage = Dense(self.action_size)(fc1)    #Shape should be (None, self.action_size)
             fc2 = Dense(512)(flatten)
-            value = Dense(1)(fc2)
-            policy = merge([advantage, value], mode = lambda x: x[0]-K.mean(x[0], keepdims=True)+K.tile(x[1],(1,self.action_size)), output_shape = (self.action_size,))
+            value = Dense(1)(fc2)                       #Shape should be (None, 1)
+            #policy = merge([advantage, value], mode = lambda x: x[0]-K.mean(x[0], keepdims=True)+K.tile(x[1],(self.action_size,1)), output_shape = (self.action_size,))
+            #policy = Lambda(lambda a: K.expand_dims(a[:, 0], -1) + a[:, 1:] - K.mean(a[:, 1:], keepdims=True), output_shape=(self.action_size,))(fc1)
+            #Now we combine 2 stream
+            advantage = Lambda(lambda advt: advt - tf.reduce_mean(advt, axis=-1, keep_dims=True))(advantage)
+            value = Lambda(lambda value: tf.tile(value, [1, self.action_size]))(value)
+            policy = Add()([value, advantage]) 
+
         elif (self.args['dueling'] == "True" and self.args['noisy'] == "True"):
             fc1 = Dense(512)(flatten)
             advantage = NoisyDense(self.action_size,name='advantage',sigma_init=SIGMA_INIT)(fc1)
             fc2 = Dense(512)(flatten)
             value = NoisyDense(1, name='value',sigma_init=SIGMA_INIT)(fc2)
-            policy = merge([advantage, value], mode = lambda x: x[0]-K.mean(x[0], keepdims=True)+K.tile(x[1],(1,self.action_size)), output_shape = (self.action_size,))
+            policy = merge([advantage, value], mode = lambda x: x[0]-K.mean(x[0], keepdims=True)+K.tile(x[1],(1,1,self.action_size)), output_shape = (self.action_size,))
         elif (self.args['dueling'] == "False" and self.args['noisy'] == "True"):
             fc1 = Dense(512)(flatten)
             policy = NoisyDense(self.action_size,name='policy',sigma_init=SIGMA_INIT)(fc1)
@@ -124,7 +131,8 @@ class DQNAgent:
     def train_replay(self):
         if len(self.memory) < self.train_start:
             return
-        
+       
+        #pdb.set_trace() 
         batch_size = min(self.batch_size, len(self.memory))
         minibatch = random.sample(self.memory, batch_size)
         # load the saved model

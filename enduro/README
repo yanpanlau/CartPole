@@ -1,0 +1,8 @@
+source activate tensorflow_p27
+python DQN.py --doubleQ "True" --dueling "False" --noisy "False" --name "DoubleDQN"
+python DQN.py --doubleQ "False" --dueling "False" --noisy "False" --name "VanillaDQN"
+python DQN.py --doubleQ "False" --dueling "True" --noisy "False" --name "DuelingDQN"
+python DQN.py --doubleQ "True" --dueling "True" --noisy "False" --name "DoubleDuelingDQN"
+
+
+

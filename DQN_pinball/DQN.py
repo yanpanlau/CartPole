@@ -22,7 +22,7 @@ import tensorflow as tf
 import pylab
 import argparse
 from NoisyDense import NoisyDense
-
+import math
 SIGMA_INIT = 0.02
 EPISODES = 30000
 img_rows , img_cols = 80, 80
@@ -124,7 +124,7 @@ class DQNAgent:
     def train_replay(self):
         if len(self.memory) < self.train_start:
             return
-        
+        #pdb.set_trace() 
         batch_size = min(self.batch_size, len(self.memory))
         minibatch = random.sample(self.memory, batch_size)
         # load the saved model
@@ -145,7 +145,7 @@ class DQNAgent:
                 if terminal[i]:
                     targets[i][action_t[i]] = reward_t[i]
                 else:
-                    a = np.argmax(target_val[i])
+                    a = np.argmax(target_val[i])    #We use the main model, s_t1 to choose action a
                     targets[i][action_t[i]] = reward_t[i] + self.discount_factor * (target_val_[i][a])
         
         #We use vanilla DQN update
@@ -231,7 +231,7 @@ if __name__ == "__main__":
             s_t1 = np.append(x_t1, s_t[:, :, :, :3], axis=3)        
 
             # save the sample <s, a, r, s'> to the replay memory
-            agent.replay_memory(s_t, action, reward/100.0, s_t1, done)
+            agent.replay_memory(s_t, action, math.tanh(reward/100.0), s_t1, done)
             # every time step do the training
             if (agent.train):
                 agent.train_replay()
